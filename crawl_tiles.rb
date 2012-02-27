@@ -97,14 +97,55 @@ def write_screen_to_file(data)
 end
 
 def parse_screen(data)
-  data[:message] = (data[:screen][-1] || []).join
-  data[:name_and_rank] = (data[:screen][0] || []).join.strip
-  data[:name_and_rank] = '' if data[:name_and_rank].scan(' the ') == []
+  screen = (data[:screen] || []).dup
+  data[:message] = (screen[-1] || []).join
+
+  #stats
+  data[:stats] = parse_player_stats(screen)
+
+  #map
+  floor_map = []
+  if screen[0] and screen[0][0..5].join != 'Hello,'
+    floor_map = screen[0..12].map do |line|
+      line[0..38] if line and line.length >= 38
+    end
+  end
+  data[:floor_map] = floor_map
+  data[:objects] = parse_floor_map(floor_map)
+  p data[:objects] if floor_map != []
+end
+
+def parse_player_stats(screen)
+  info = {}
+  stats = screen.map do |line|
+    line[39..-1].join if line and line.length > 39
+  end
+  info[:title] = (stats[0] || '').strip
+  info[:title] = '' if info[:title].scan(' the ') == []
+  info[:species] = (stats[1] || '').strip
+  info
+end
+
+KNOWN_OBJECTS = {:ground => ['.'], :walls => ['#'], :creatures => ('a'..'z').to_a,
+  :hero => ['@'], :items => [')','(','[','%','?','!','/','=','"','\\','|','+',':','}','$']}
+def parse_floor_map(floor_map)
+  objects = {:hero => [], :creatures => [], :items => [],
+    :stairs => [], :walls => [], :ground => []}
+
+  floor_map.each_index do |y|
+    (floor_map[y] || []).each_index do |x|
+      contents = floor_map[y][x]
+      KNOWN_OBJECTS.each do |name,abv_array|
+        objects[name] << [x,y] if abv_array.include?(contents)
+      end
+    end
+  end
+  objects[:hero] = objects[:hero][0]
+  objects
 end
 
 def make_move(data)
   @last_message = '' unless @last_message
-  #p data[:message], data[:name_and_rank] unless @last_message == data[:message]
   write_screen_to_file(data) unless @last_message == data[:message]
   @last_message = data[:message]
 
@@ -116,7 +157,7 @@ def make_move(data)
     data[:move] = ['a']
   elsif data[:message].scan('Which weapon?') != []
     data[:move] = ['a']
-  elsif data[:name_and_rank] != ''
+  elsif data[:stats][:title] != ''
     display_screen(data)
     data[:move] = ['S','Y']
     data[:quit] = true
