@@ -81,7 +81,13 @@ def decipher_control_symbol(data, symbol)
 end
 
 def display_screen(data)
-  data[:screen].each { |line| p (line || []).join  }
+  File.open('screenshot', 'w') do |f|
+    (data[:output] || '').each_byte do |byte|
+      f.putc(byte)
+    end
+    f.putc(27)
+    f.puts('[20;0H')
+  end
 end
 
 def write_screen_to_file(data)
@@ -98,7 +104,7 @@ end
 
 def make_move(data)
   @last_message = '' unless @last_message
-  p data[:message], data[:name_and_rank] unless @last_message == data[:message]
+  #p data[:message], data[:name_and_rank] unless @last_message == data[:message]
   write_screen_to_file(data) unless @last_message == data[:message]
   @last_message = data[:message]
 
@@ -111,6 +117,7 @@ def make_move(data)
   elsif data[:message].scan('Which weapon?') != []
     data[:move] = ['a']
   elsif data[:name_and_rank] != ''
+    display_screen(data)
     data[:move] = ['S','Y']
     data[:quit] = true
   end
@@ -140,4 +147,5 @@ IO.popen("crawl", "w+") do |pipe|
       data[:move] = []
     end
   end
+  `reset`
 end
