@@ -13,7 +13,7 @@ def decipher_output(data)
   string = ''
   is_control_char = false
   output = data[:output]
-  output.each_byte do |byte|
+  (output || '').each_byte do |byte|
     char = byte.chr
     string += char if is_control_char
 
@@ -90,32 +90,54 @@ def write_screen_to_file(data)
   end
 end
 
+def parse_screen(data)
+  data[:message] = (data[:screen][-1] || []).join
+  data[:name_and_rank] = (data[:screen][0] || []).join.strip
+  data[:name_and_rank] = '' if data[:name_and_rank].scan(' the ') == []
+end
+
+def make_move(data)
+  @last_message = '' unless @last_message
+  p data[:message], data[:name_and_rank] unless @last_message == data[:message]
+  write_screen_to_file(data) unless @last_message == data[:message]
+  @last_message = data[:message]
+
+  if data[:message] == 'What is your name today? '
+    data[:move] = ['John', 13]
+  elsif data[:message].scan('Which one?') != []
+    data[:move] = ['a']
+  elsif data[:message].scan('What kind of character are you?') != []
+    data[:move] = ['a']
+  elsif data[:message].scan('Which weapon?') != []
+    data[:move] = ['a']
+  elsif data[:name_and_rank] != ''
+    data[:move] = ['S','Y']
+    data[:quit] = true
+  end
+  data
+end
+
 IO.popen("crawl", "w+") do |pipe|
   pipe.flush
   threadA = Thread.fork {handle_read(pipe)}
 
-  data = {:screen => [], :x => 0, :y => 0}
-  5.times do |i|
-    sleep(2)
-    p data[:output] = threadA['output'], i
+  data = {:screen => [], :x => 0, :y => 0, :message => '', :move => [], :quit => false, :delay => 0.1}
+  while data[:quit] == false
+    sleep(data[:delay])
+    data[:output] = threadA['output']
     data = decipher_output(data)
-    threadA['clear'] = true
-    if i == 0 #'What is your name today?') != []
-      pipe.puts('John')
-      pipe.putc(13)
-    elsif data[:output].scan('must be new here') != []
-      2.times do
-        pipe.putc('a')
-        sleep(2)
-        threadA['clear'] = true
+    parse_screen(data)
+    data = make_move(data)
+    if data[:move] != []
+      threadA['clear'] = true
+      data[:move].each do |move|
+        if move.class == String
+          pipe.puts(move)
+        elsif move.class.to_s == 'FixNum'
+          pipe.putc(move)
+        end
       end
-      pipe.putc('a')
-    else
-      write_screen_to_file(data)
-      pipe.putc('S')      #pipe.putc('q')
-      pipe.putc('Y')
-      5.times { pipe.putc(13) }
-      break
+      data[:move] = []
     end
   end
 end
