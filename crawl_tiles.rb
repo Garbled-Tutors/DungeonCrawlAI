@@ -15,14 +15,16 @@ PLAYER_DETAILS = {:name => NAME, :species => SPECIES,
   @last_message = data[:message]
 
   @warrior.display_screen
-  if data[:stats] != nil and data[:stats][:magic_remaining] != nil
-    @warrior.press_buttons(['S','y'])
-    @warrior.stop_program
-  end
+  #if data[:stats] != nil and data[:stats][:magic_remaining] != nil
+    #@warrior.press_buttons(['S','y'])
+    #@warrior.stop_program
+  #end
   if data[:stats] != nil
     if data[:stats][:magic_remaining] > 0 and data[:objects][:creatures].length > 0
-      @warrior.press_buttons(['z','a'])
+      p 'Summoning'
+      @warrior.press_buttons(['z',97])
     else
+      p 'Searching'
       @warrior.press_buttons(['o'])
     end
   end

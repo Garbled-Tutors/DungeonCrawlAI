@@ -53,7 +53,7 @@ class Crawl
   def parse_screen
     screen = @interface.get_screen_contents
     @data[:screen] = screen
-    @data[:message] = (screen[-1] || [])
+    p @data[:message] = (screen[-1] || [])
 
     #stats
     @data[:stats] = parse_player_stats(screen)

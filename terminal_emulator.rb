@@ -4,7 +4,7 @@ class TerminalEmulator
 
   def initialize
     @preserve_program = nil
-    @read_delay = 0.1
+    @read_delay = 0.5
     reset_screen
   end
 
@@ -29,6 +29,7 @@ class TerminalEmulator
 
   def press_buttons(input)
     input = [input] if input.class.to_s != 'Array'
+    p "adding #{input}"
     @key_strokes += input
   end
 
@@ -87,6 +88,7 @@ class TerminalEmulator
     read_thread['clear'] = true
     key_stroke = @key_strokes.shift
     stroke_class = key_stroke.class.to_s
+    p "pressing #{key_stroke} which is a #{stroke_class}"
     pipe.puts(key_stroke) if stroke_class == 'String'
     pipe.putc(key_stroke) if stroke_class == 'FixNum'
   end
