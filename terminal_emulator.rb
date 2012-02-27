@@ -1,22 +1,23 @@
-class AsciiProgramInterface
-  #TODO: Combine all of this into one class
-  def initialize(program_command)
-    @program_command = program_command
+class TerminalEmulator
+  INACTIVE = nil
+  ESCAPE_BYTE = 27
+
+  def initialize
     @preserve_program = nil
-    @terminal = TerminalEmulator.new
+    @read_delay = 0.1
+    reset_screen
   end
 
-  def run_program(&block)
+  def run_program(program_command, &block)
     @preserve_program = true
-    @read_delay = 0.1
     @key_strokes = []
-    IO.popen(@program_command, "w+") do |pipe|
+    IO.popen(program_command, "w+") do |pipe|
       pipe.flush
       read_thread = Thread.fork {handle_read(pipe)}
 
       while @preserve_program
         sleep(@read_delay)
-        @terminal.parse_input(read_thread['output'])
+        parse_input(read_thread['output'])
         handle_key_strokes(pipe, read_thread)
         if @key_strokes == [] and block_given?
           block.call
@@ -26,29 +27,47 @@ class AsciiProgramInterface
     end
   end
 
-  def stop_program
-    @preserve_program = false
+  def press_buttons(input)
+    input = [input] if input.class.to_s != 'Array'
+    @key_strokes += input
   end
 
   def change_read_delay(new_delay)
     @read_delay = new_delay
   end
 
+  def stop_program
+    @preserve_program = false
+  end
+
   def get_screen_contents
-    @terminal.get_screen_contents
+    @screen.dup.map do |line|
+      (line || []).map { |char| char || ' ' }.join
+    end
   end
 
   def display_screen
-    @terminal.display_screen
+    File.open('screen', 'w') do |f|
+      get_screen_contents.each { |line| f.puts line }
+    end
   end
 
   def take_screen_shot
-    @terminal.take_screen_shot
+    File.open('screenshot', 'w') do |f|
+      @all_input.each_byte do |byte|
+        f.putc(byte)
+      end
+      f.putc(27)
+      f.puts('[20;0H')
+    end
   end
 
-  def press_buttons(input)
-    input = [input] if input.class.to_s != 'Array'
-    @key_strokes += input
+  def reset_screen
+    @x = 0
+    @y = 0
+    @screen = []
+    @all_input = ''
+    @escape_code = INACTIVE
   end
 
   private
@@ -71,23 +90,6 @@ class AsciiProgramInterface
     pipe.puts(key_stroke) if stroke_class == 'String'
     pipe.putc(key_stroke) if stroke_class == 'FixNum'
   end
-end
-
-class TerminalEmulator
-  INACTIVE = nil
-  ESCAPE_BYTE = 27
-
-  def initialize
-    reset_screen
-  end
-
-  def reset_screen
-    @x = 0
-    @y = 0
-    @screen = []
-    @all_input = ''
-    @escape_code = INACTIVE
-  end
 
   def parse_input(input)
     @all_input += input
@@ -95,33 +97,6 @@ class TerminalEmulator
       write_byte_to_screen(byte) if @escape_code == INACTIVE
       read_for_escape_codes(byte)
     end
-  end
-
-  def take_screen_shot
-    File.open('screenshot', 'w') do |f|
-      @all_input.each_byte do |byte|
-        f.putc(byte)
-      end
-      f.putc(27)
-      f.puts('[20;0H')
-    end
-  end
-
-  def get_screen_contents
-    @screen.dup.map do |line|
-      (line || []).map { |char| char || ' ' }.join
-    end
-  end
-
-  def display_screen
-    File.open('screen', 'w') do |f|
-      get_screen_contents.each { |line| f.puts line }
-    end
-  end
-
-  private
-  def convert_nil_to_space
-    @screen.map! { |line| (line || []).map { |space| space || '' } }
   end
 
   def read_for_escape_codes(byte)

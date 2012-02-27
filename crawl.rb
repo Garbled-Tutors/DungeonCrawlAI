@@ -1,4 +1,4 @@
-require_relative 'ascii_program_interface'
+require_relative 'terminal_emulator'
 
 class Crawl
   ITEM_TYPES = {')' => :weapon,'(' => :missle,'[' => :armor,'%' => :food,'?' => :scroll,
@@ -7,10 +7,14 @@ class Crawl
   KNOWN_OBJECTS = {:ground => ['.'], :walls => ['#'], :creatures => ('a'..'z').to_a,
     :hero => ['@'], :items => ITEM_TYPES.keys}
 
+  def initialize(name, species, occupation)
+    @cmd_arguements = "-name #{name} -race #{species} -class #{occupation}"
+  end
+
   def run_program(&block)
     @data = {}
-    @interface = AsciiProgramInterface.new('crawl')
-    @interface.run_program do
+    @interface = TerminalEmulator.new
+    @interface.run_program('crawl ' + @cmd_arguements) do
       parse_screen
       block.call(@data)
     end

@@ -1,18 +1,19 @@
-                #.#                    John the Skirmisher
-                #.#                    Human 
-                #.#                    HP: 15/15
-                #b#                    Magic: 0/0
-                #.#                    AC: 5     (5) 
-                #.#                    EV: 8  
-                #.#                    Str: 16
-                #.#                    Int: 9
-                #@#                    Dex: 11
-                ###                    Gold: 6
-                                       Experience: 1/0  (25)
-                                       Level 1 of the Dungeon
-                                       a) +0 short sword
-
-
-
-
+                                       John the Skirmisher
+                                       Human 
+                                       HP: 15/15
+                                       Magic: 0/0
+                                       AC: 5     (5) 
+                                       EV: 8  
+              #                        Str: 17
+              #.#######                Int: 8
+              #..@.K..#                Dex: 11
+              ##......#                Gold: 20
+               .......#                Experience: 1/0  (25)
+              ###S.l#.#                Level 1 of the Dungeon
+                 .... #                a) +0 short sword
+                 .##.             
+                 .+ .             
+                 .#
+                ..
 You swing at nothing.an Fighter.
+You hear a shout!
