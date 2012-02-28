@@ -1,4 +1,5 @@
 require_relative 'terminal_emulator'
+require_relative 'output_parser'
 
 class Crawl
   ITEM_TYPES = {')' => :weapon,'(' => :missle,'[' => :armor,'%' => :food,'?' => :scroll,
@@ -25,79 +26,45 @@ class Crawl
   end
 
   def run_program(&block)
-    @data = {}
-    @interface = TerminalEmulator.new
-    @interface.run_program('crawl' + @cmd_arguements) do
-      @interface.take_screen_shot
-      parse_screen
-      block.call(@data)
+    @terminal = TerminalEmulator.new
+    @terminal.execute_program('crawl' + @cmd_arguements,0.2) do |pipe, output|
+      block.call(pipe,output)
     end
   end
 
-  def take_screen_shot
-    @interface.take_screen_shot
+  def take_screen_shot(output)
+    @terminal.take_screen_shot(output)
   end
 
-  def display_screen
-    @interface.display_screen
+  def display_screen(output)
+    OutputParser.new.display_screen(output)
   end
 
-  def press_buttons(input)
-    @interface.press_buttons(input)
-  end
-
-  def stop_program
-    @interface.stop_program
+  def manual_control(pipe)
+    @terminal.input_data(pipe, @terminal.read_char)
   end
 
   def parse_screen
-    screen = @interface.get_screen_contents
-    @data[:screen] = screen
-    p @data[:message] = (screen[-1] || [])
-
-    #stats
-    @data[:stats] = parse_player_stats(screen)
-
-    #map
-    floor_map = []
-    if screen[0] and screen[0][0..5] != 'Hello,'
-      floor_map = screen[0..12].map do |line|
-        line[0..38].split(//) if line and line.length >= 38
-      end
-    end
-    @data[:floor_map] = floor_map
-    @data[:objects] = parse_floor_map(floor_map)
-    #p @data[:objects] if floor_map != []
   end
 
   def parse_player_stats(screen)
-    return unless screen[0]
-    return if screen[0].strip.scan(' the ') == []
-    info = {}
-    stats = screen.map do |line|
-      line[37..-1] if line and line.length > 39
-    end
-    info[:title] = (stats[0] || '').strip
-    info[:title] = '' if info[:title].scan(' the ') == []
-    info[:species] = (stats[1] || '').strip
-    magic = (stats[3] || '').split(' ')[1]
-    info[:magic_remaining] = magic.split('/')[0].to_i if magic
-    info
   end
 
   def parse_floor_map(floor_map)
-    objects = {:hero => [], :creatures => [], :items => [],
-      :stairs => [], :walls => [], :ground => []}
-
-    floor_map.each_index do |y|
-      (floor_map[y] || []).each_index do |x|
-        contents = floor_map[y][x]
-        KNOWN_OBJECTS.each do |name,abv_array|
-          objects[name] << [x,y] if abv_array.include?(contents)
-        end
-      end
-    end
-    objects[:hero] = objects[:hero][0]
-    objects
   end
 end
+
+NAME = 'Joe'
+SPECIES = 'Mummy'
+BACKGROUND = 'Summoner'
+WEAPON = 'short sword'
+PLAYER_DETAILS = {:name => NAME, :species => SPECIES,
+  :background => BACKGROUND, :weapon => WEAPON}
+
+@crawl = Crawl.new(PLAYER_DETAILS)
+@crawl.run_program do |pipe,output|
+  @crawl.take_screen_shot(output)
+  @crawl.display_screen(output)
+  @crawl.manual_control(pipe)
+end
+

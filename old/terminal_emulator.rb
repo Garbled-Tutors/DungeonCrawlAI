@@ -2,23 +2,88 @@ class TerminalEmulator
   INACTIVE = nil
   ESCAPE_BYTE = 27
 
+  def initialize
+    @preserve_program = nil
+    @read_delay = 0.5
+    reset_screen
+  end
+
+  def run_program(program_command, &block)
+    @preserve_program = true
+    @key_strokes = []
+    IO.popen(program_command, "w+") do |pipe|
+      pipe.flush
+      read_thread = Thread.fork {handle_read(pipe)}
+
+      while @preserve_program
+        sleep(@read_delay)
+        parse_input(read_thread['output'])
+        handle_key_strokes(pipe, read_thread)
+        if @key_strokes == [] and block_given?
+          block.call
+        end
+      end
+      `reset`
+    end
+  end
+
+  def press_buttons(input)
+    input = [input] if input.class.to_s != 'Array'
+    p "adding #{input}"
+    @key_strokes += input
+  end
+
+  def change_read_delay(new_delay)
+    @read_delay = new_delay
+  end
+
+  def stop_program
+    @preserve_program = false
+  end
+
+  def get_screen_contents
+    @screen.dup.map do |line|
+      (line || []).map { |char| char || ' ' }.join
+    end
+  end
+
+  def write_screen_to_file
+    File.open('screen', 'w') do |f|
+      get_screen_contents.each { |line| f.puts line }
+    end
+  end
+
+  def display_screen
+    get_screen_contents.each { |line| puts line }
+  end
+
+  def take_screen_shot
+    File.open('screenshot', 'w') do |f|
+      @all_input.each_byte do |byte|
+        f.putc(byte)
+      end
+      f.putc(27)
+      f.puts('[20;0H')
+    end
+  end
+
   def reset_screen
     @x = 0
     @y = 0
     @screen = []
+    @all_input = 27.chr + '[2J'
     @escape_code = INACTIVE
   end
 
-  def display_screen(all_input)
-    reset_screen
-    parse_input(all_input)
-    get_screen_contents.each { |line| puts line }
-  end
-
   private
-  def get_screen_contents
-    @screen.dup.map do |line|
-      (line || []).map { |char| char || ' ' }.join
+  def handle_read(pipe)
+    Thread.current['output'] = ''
+    Thread.current['clear'] = false
+    until pipe.eof?
+      current_char = pipe.getc
+      Thread.current['output'] = '' if Thread.current['clear']
+      Thread.current['output'] += current_char
+      Thread.current['clear'] = false
     end
   end
 
@@ -34,6 +99,7 @@ class TerminalEmulator
 
   def parse_input(input)
     input.each_byte do |byte|
+      @all_input += byte.chr
       write_byte_to_screen(byte) if @escape_code == INACTIVE
       read_for_escape_codes(byte)
     end
@@ -89,72 +155,5 @@ class TerminalEmulator
       distance = @escape_code[1..-2].to_i
       @x = distance - 1
     end
-  end
-end
-
-def handle_read(pipe)
-  Thread.current[:output] = ''
-  Thread.current[:clear] = false
-  until pipe.eof?
-    current_char = pipe.getc
-    Thread.current[:output] = '' if Thread.current[:clear]
-    Thread.current[:output] += current_char
-    Thread.current[:clear] = false
-  end
-end
-
-def take_screen_shot(all_input)
-  File.open('screenshot', 'w') do |f|
-    all_input.dup.each_byte do |byte|
-      f.putc(byte)
-    end
-    f.putc(27)
-    f.puts('[50;0H')
-  end
-end
-
-# read a character without pressing enter and without printing to the screen
-def read_char
-  begin
-    # save previous state of stty
-    old_state = `stty -g`
-    # disable echoing and enable raw (not having to press enter)
-    system "stty raw -echo"
-    c = STDIN.getc.chr
-    # gather next two characters of special keys
-    if(c=="\e")
-      extra_thread = Thread.new{
-        c = c + STDIN.getc.chr
-        c = c + STDIN.getc.chr
-      }
-      # wait just long enough for special keys to get swallowed
-      extra_thread.join(0.00001)
-      # kill thread so not-so-long special keys don't wait on getc
-      extra_thread.kill
-    end
-  rescue => ex
-    puts "#{ex.class}: #{ex.message}"
-    puts ex.backtrace
-  ensure
-    # restore previous state of stty
-    system "stty #{old_state}"
-  end
-  return c
-end
-
-IO.popen('crawl -name Player -species Human -background Summoner 2> error', "w+") do |pipe|
-  read_thread = Thread.fork {handle_read(pipe)}
-
-  while true
-    sleep(1)
-    take_screen_shot(read_thread[:output])
-    TerminalEmulator.new.display_screen(read_thread[:output])
-    blah = read_char
-    blah.each_byte do |byte|
-      p byte
-      pipe.putc byte
-    end
-    #read_char.each_byte
-    #pipe.puts read_char
   end
 end
