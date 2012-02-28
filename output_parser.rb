@@ -11,21 +11,21 @@ class OutputParser
 
   def display_screen(all_input)
     reset_screen
-    parse_input(all_input)
-    get_screen_contents.each { |line| puts line }
-  end
-
-  private
-  def get_screen_contents
-    @screen.dup.map do |line|
-      (line || []).map { |char| char || ' ' }.join
-    end
+    parse_input(all_input).each { |line| puts line }
   end
 
   def parse_input(input)
     input.each_byte do |byte|
       write_byte_to_screen(byte) if @escape_code == INACTIVE
       read_for_escape_codes(byte)
+    end
+    get_screen_contents
+  end
+
+  private
+  def get_screen_contents
+    @screen.dup.map do |line|
+      (line || []).map { |char| char || ' ' }.join
     end
   end
 
