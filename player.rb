@@ -12,24 +12,18 @@ class Player
     PLAYER_DETAILS
   end
 
-  def make_move(crawl,pipe,output)
-    crawl.display_screen(output)
-    info = crawl.parse_screen(output)
+  def make_move(info)
     if info[:visible][:creatures] == []
-      pipe.putc 'o'
+      :auto_explore
     elsif info[:stats][:magic][0].to_i > 0
-      pipe.putc 'z'
-      sleep(0.1)
-      pipe.putc 'a'
-    else
-      crawl.manual_control(pipe)
+      :cast
     end
   end
 end
 
 player = Player.new
 crawl = Crawl.new(player.get_details)
-crawl.run_program do |pipe,output|
-  player.make_move(crawl,pipe,output)
+crawl.run_program do |info|
+  player.make_move(info)
 end
 
