@@ -1,6 +1,6 @@
 class TerminalEmulator
   def execute_program(command, sleep_delay, &block)
-    IO.popen(command + ' 2> error', "w+") do |pipe|
+    IO.popen(command + ' 2> /dev/null', "w+") do |pipe|
       @read_thread = Thread.fork {handle_read(pipe)}
 
       while true
@@ -16,6 +16,7 @@ class TerminalEmulator
 
   def input_data(pipe, read_chars)
     read_chars.each_byte do |byte|
+      p byte
       pipe.putc byte
     end
   end
