@@ -10,29 +10,32 @@ class Imhotep<Player
     PLAYER_DETAILS
   end
 
+
+  # Example info value
+  #{:stats=>{:name, :species, :background, :health=>["13", "13"], :magic=>["2", "3"], :ac, :str, :ev, :int, :sh, :dex, :branch, :floor, :exp, :weapon, :quivered}
+  #:visible=>{:hero, :creatures, :items, :stairs, :walls, :ground, :map},
+  #:map=>{},
+  #:creatures=>[{:name=>"bat", :coordinates=>[16, 9], :notes=>["friendly", "summoned"]}, {:name=>"hobgoblin", :coordinates=>[18, 15], :notes=>["resting", "wielding a club"]}]}
+
   def play_turn(warrior, info)
+    if info[:visible][:creatures].length > 0
+      #creatures exist check to see if they are friendly
+      if info[:creatures] == nil
+        warrior.update_visible
+        return
+      else
+        enemies_seen = info[:creatures].map { |creature| creature[:notes].include?('summoned')}.include?(true)
 
-    @turn_count = 0 unless @turn_count
-    enemies = info[:visible][:creatures].length
-    if @turn_count == 0
-      warrior.update_visible
-      @turn_count = 1
-      return
-    end
-    p info
-    exit
-
-    exit if enemies > 2
-    if enemies == 2
-      warrior.update_visible
-    elsif info[:visible][:creatures] == []
+        if enemies_seen and info[:stats][:magic][0].to_i > 0
+          warrior.cast('Summon Small Mammals')
+          return
+        elsif enemies_seen
+          warrior.wait
+          return
+        end
+      end
       warrior.autoexplore
-    elsif info[:stats][:magic][0].to_i > 0
-      warrior.cast
-    else
-      warrior.wait
     end
   end
-
 end
 
