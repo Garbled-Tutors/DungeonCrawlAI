@@ -23,7 +23,42 @@ class ScreenParser
     objects
   end
 
+  def self.get_object_notes(output)
+    screen = OutputParser.new.parse_input(output)
+    if screen[-2][0..5].include?('Here:')
+      screen[-2]
+    else
+      nil
+    end
+  end
+
+  def self.parse_creatures(output)
+    creatures = []
+    parse_object_array(output).each do |creature|
+      main_details = creature[0].split(' (')[0].split(', ')
+      creature_name = main_details[0]
+      weapon_notes = main_details[1..-1]
+      notes = (creature[0] + ' ').split('(')[1..-1].map { |i| i.split(')')[0..-2] }
+      notes.flatten!
+      notes = notes[0].split(', ') if notes[0]
+      notes += weapon_notes
+      creatures << {:name => creature_name, :coordinates => [creature[1], creature[2]], :notes => notes}
+    end
+    creatures[0..-2]
+  end
   private
+
+  def self.parse_object_array(output)
+    monster_data = output.split("\n")[-1]
+    output_parser = OutputParser.new
+    object_data = output_parser.seperate_by_cursor_jumps(monster_data)
+    object_data[1][2][0] = object_data[1][2][0][8..-1] #hack
+    results = []
+    1.step(object_data.length - 1, 3) do |index|
+      results << [object_data[index][2][0], object_data[index + 1][1], object_data[index + 1][0] ]
+    end
+    results[0..-1] #last result is always the hero
+  end
   def self.parse_stats(screen)
     panel = screen[0..9].map { |line| line[37..-1] }
 
@@ -71,34 +106,3 @@ class ScreenParser
     objects
   end
 end
-
-#Examining surroundings ('x')
-#When roaming the dungeon, the surroundings mode is activated by 'x'. It lets you have a look at items or monsters in line of sight. You may also examine stashed items outside current view using the option target_oos = true (if using this, check the option target_los_first).
-#Esc, Space, x
-    #Return to playing mode.
-#?
-    #Special help screen.
-#* or '
-    #Cycle objects forward.
-#/ or ;
-    #Cycle objects backward.
-#+ or =
-    #Cycle monsters forward.
-#-
-    #Cycle monsters backward.
-#direction
-    #Move cursor.
-#. or Enter
-    #Travel to cursor (also Del).
-#v
-    #Describe feature or monster under cursor. Some branch entries have special information.
-#>
-    #Cycle downstairs.
-#<
-    #Cycle upstairs.
-#_
-    #Cycle through altars.
-#Tab
-    #Cycle shops and portals.
-
-

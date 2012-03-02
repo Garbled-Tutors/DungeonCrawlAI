@@ -16,7 +16,7 @@ class TerminalEmulator
 
   def input_data(pipe, read_chars)
     read_chars.each_byte do |byte|
-      p byte
+      #p "putting #{byte}"
       pipe.putc byte
     end
   end
