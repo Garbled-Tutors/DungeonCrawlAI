@@ -7,7 +7,7 @@ class Crawl
   def initialize
     @key_strokes = []
     @functions_waiting_to_run = []
-    @player = Imhotep.new #@player = Player.new
+    @player = DebugInfo.new #@player = Player.new
     reset_saved_info
     run_program
   end
@@ -69,11 +69,13 @@ class Crawl
 
 
   def parse_visible(output)
-    if ScreenParser.get_object_notes(output) == nil
-      creature_details = {:creatures => ScreenParser.parse_creatures(output)}
-      @saved_info.merge!(creature_details)
+    notes = ScreenParser.get_object_notes(output)
+    if notes == nil
+      @saved_info.merge!(ScreenParser.parse_objects(@object_notes))
       return 27.chr
     end
+    @object_notes = [] unless @object_notes
+    @object_notes << notes
     @functions_waiting_to_run = ['parse_visible']
     return '+'
   end
@@ -87,12 +89,14 @@ class Crawl
         Commmon.display_screen(output)
         sleep(1)
         info = ScreenParser.parse_screen(output)
-        @saved_info.each { |key,value| info[key] = value }
+        if info != nil
+          @saved_info.each { |key,value| info[key] = value }
 
-        @key_strokes = ['.'] # do nothing
-        @player.play_turn(self, info)
-        @terminal.input_data(pipe, @key_strokes)
-        reset_saved_info
+          @key_strokes = ['.'] # do nothing
+          @player.play_turn(self, info)
+          @terminal.input_data(pipe, @key_strokes)
+          reset_saved_info
+        end
       else
         func_name = @functions_waiting_to_run.shift
         @key_strokes = send(func_name, output)

@@ -1,11 +1,19 @@
+require 'bashparser'
+
 class ScreenParser
+  STATS_X_START = 37
+  MAP_X_END = STATS_X_START - 1
+  GAME_MESSAGES_Y_START = 17
+  MAP_Y_END = GAME_MESSAGES_Y_START - 1
+
   def self.parse_screen(output)
-    screen = OutputParser.new.parse_input(output)
+    screen = BashParser.new.parse_input(output)
+    return nil if screen == []
     {:stats => parse_stats(screen), :visible => parse_visible(screen) }
   end
 
   def self.parse_full_map(output)
-    screen = OutputParser.new.parse_input(output)
+    screen = BashParser.new.parse_input(output)
     floor_map = []
     floor_map = screen.map { |line| line.split(//) }.dup
 
@@ -24,17 +32,23 @@ class ScreenParser
   end
 
   def self.get_object_notes(output)
-    screen = OutputParser.new.parse_input(output)
+    screen = BashParser.new.parse_input(output)
     if screen[-2][0..5].include?('Here:')
-      screen[-2]
+      objects = BashParser.seperate_by_escape_codes(output)
+      objects.select! do |element|
+        is_on_map = ( (element[2][0] < MAP_X_END) and (element[2][1] < MAP_Y_END) )
+        ( (element[0].length == 1) and (is_on_map) )
+      end
+      selected_object = objects[-1]
+      [ screen[-2], selected_object[0], selected_object[2] ]
     else
       nil
     end
   end
 
-  def self.parse_creatures(output)
-    creatures = []
-    parse_object_array(output).each do |creature|
+  def self.parse_objects(object_notes)
+    creatures = object_notes.select { |obj| obj[1] != obj[1].dup.swapcase }
+    creatures.map! do |creature|
       main_details = creature[0].split(' (')[0].split(', ')
       creature_name = main_details[0]
       weapon_notes = main_details[1..-1]
@@ -42,15 +56,15 @@ class ScreenParser
       notes.flatten!
       notes = notes[0].split(', ') if notes[0]
       notes += weapon_notes
-      creatures << {:name => creature_name, :coordinates => [creature[1], creature[2]], :notes => notes}
+      {:name => creature_name, :coordinates => creature[2] , :notes => notes}
     end
-    creatures[0..-2]
+    {:creatures => creatures}
   end
   private
 
   def self.parse_object_array(output)
     monster_data = output.split("\n")[-1]
-    output_parser = OutputParser.new
+    output_parser = BashParser.new
     object_data = output_parser.seperate_by_cursor_jumps(monster_data)
     object_data[1][2][0] = object_data[1][2][0][8..-1] #hack
     results = []
@@ -59,8 +73,9 @@ class ScreenParser
     end
     results[0..-1] #last result is always the hero
   end
+
   def self.parse_stats(screen)
-    panel = screen[0..9].map { |line| line[37..-1] }
+    panel = screen[0..9].map { |line| line[STATS_X_START..-1] }
 
     name_and_background = panel[0].split(' the ')
     name = name_and_background[0]
@@ -88,7 +103,7 @@ class ScreenParser
 
   def self.parse_visible(screen)
     floor_map = []
-    floor_map = screen[0..16].map { |line| line[0..36].split(//) }
+    floor_map = screen[0..MAP_Y_END].map { |line| line[0..MAP_X_END].split(//) }
 
     #floor_map.each { |line| p (line || []).join }
     objects = {:hero => [], :creatures => [], :items => [], :stairs => [],

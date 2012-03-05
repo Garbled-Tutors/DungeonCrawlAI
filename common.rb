@@ -1,4 +1,4 @@
-require_relative 'output_parser'
+require 'bashparser'
 
 class Commmon
   PLAYER_MAIN_DETAILS = {:name => 'Player', :species => 'Human',
@@ -61,6 +61,6 @@ class Commmon
   end
 
   def self.display_screen(output)
-    OutputParser.new.display_screen(output)
+    BashParser.new.display_screen(output)
   end
 end
