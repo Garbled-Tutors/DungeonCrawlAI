@@ -8,7 +8,7 @@ class ScreenParser
 
   def self.parse_screen(output)
     screen = BashParser.new.parse_input(output)
-    return nil if screen == []
+    return nil if screen == [] or screen.dup.join == ''
     {:stats => parse_stats(screen), :visible => parse_visible(screen) }
   end
 
@@ -32,9 +32,12 @@ class ScreenParser
   end
 
   def self.get_object_notes(output)
+    BashParser.save_input_to_file(output,'bugreport')
     screen = BashParser.new.parse_input(output)
+    screen.each_index { |index| p "#{index}: #{screen[index]}" }
+    exit
     if screen[-2][0..5].include?('Here:')
-      objects = BashParser.seperate_by_escape_codes(output)
+      objects = BashParser.split_by_escape_codes(output)
       objects.select! do |element|
         is_on_map = ( (element[2][0] < MAP_X_END) and (element[2][1] < MAP_Y_END) )
         ( (element[0].length == 1) and (is_on_map) )
@@ -47,6 +50,7 @@ class ScreenParser
   end
 
   def self.parse_objects(object_notes)
+    return {} unless object_notes
     creatures = object_notes.select { |obj| obj[1] != obj[1].dup.swapcase }
     creatures.map! do |creature|
       main_details = creature[0].split(' (')[0].split(', ')
@@ -61,18 +65,6 @@ class ScreenParser
     {:creatures => creatures}
   end
   private
-
-  def self.parse_object_array(output)
-    monster_data = output.split("\n")[-1]
-    output_parser = BashParser.new
-    object_data = output_parser.seperate_by_cursor_jumps(monster_data)
-    object_data[1][2][0] = object_data[1][2][0][8..-1] #hack
-    results = []
-    1.step(object_data.length - 1, 3) do |index|
-      results << [object_data[index][2][0], object_data[index + 1][1], object_data[index + 1][0] ]
-    end
-    results[0..-1] #last result is always the hero
-  end
 
   def self.parse_stats(screen)
     panel = screen[0..9].map { |line| line[STATS_X_START..-1] }
